@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VersionTools.Lib.Test", "te
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{D549D8B3-10B7-408C-B64E-E289D30B1FC8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VersionTools.Cli", "src\VersionTools.Cli\VersionTools.Cli.csproj", "{2413C62C-46DA-45F8-B4BC-01C6450166A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{91EB79B3-21F8-48C8-89E7-2BF9FE25EB15}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{91EB79B3-21F8-48C8-89E7-2BF9FE25EB15}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{91EB79B3-21F8-48C8-89E7-2BF9FE25EB15}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2413C62C-46DA-45F8-B4BC-01C6450166A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2413C62C-46DA-45F8-B4BC-01C6450166A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2413C62C-46DA-45F8-B4BC-01C6450166A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2413C62C-46DA-45F8-B4BC-01C6450166A2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

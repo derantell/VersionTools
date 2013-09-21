@@ -29,6 +29,14 @@ namespace VersionTools.Lib.Test {
                 var fileVersion = VersionHelper.GetAssemblyFileVersion(assemblyPath);
                 Assert.Equal( "1.2.3-beta2+master.deadb33f", fileVersion );
             }
+
+
+            [Fact]
+            public void should_return_the_full_file_version_when_called_as_extension_method_of_Assembly() {
+                var fileVersion = Assembly.GetExecutingAssembly().GetAssemblyFileVersion();
+                Assert.Equal( "1.2.3-beta2+master.deadb33f", fileVersion );
+            }
+
         }
 
 
@@ -52,6 +60,14 @@ namespace VersionTools.Lib.Test {
                 var assemblyPath = Assembly.GetExecutingAssembly().Location;
                 var assemblyVersion = VersionHelper.GetAssemblyVersion(assemblyPath);
                 Assert.Equal("1.2.3.0", assemblyVersion );
+            }
+
+
+            [Fact]
+            public void should_return_the_assembly_version_of_the_assembly_when_used_as_an_extension_method() {
+                var assemblyVersion = Assembly.GetExecutingAssembly().GetAssemblyVersion();
+                Assert.Equal("1.2.3.0", assemblyVersion);
+                
             }
 
         }
@@ -79,6 +95,12 @@ namespace VersionTools.Lib.Test {
                 Assert.Equal("Test project v1.2.3", productVersion);
             }
 
+
+            [Fact]
+            public void should_return_the_product_version_of_the_assembly_when_used_as_extension() {
+                var assemblyVersion = Assembly.GetExecutingAssembly().GetProductVersion();
+                Assert.Equal("Test project v1.2.3", assemblyVersion);
+            }
 
         }
     }
