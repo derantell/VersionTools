@@ -1,4 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Reflection;
 using PowerArgs;
 using VersionTools.Lib;
@@ -25,7 +29,15 @@ namespace VersionTools.Cli {
         }
 
         private static void HandleListAction(ListArgs args) {
-           Console.WriteLine("List action not implemented");
+            if (args.Location == "") {
+                args.Location = Directory.GetCurrentDirectory();
+            }
+
+            var assemblyEnumerator = new AssemblyEnumerator(args.Location, args.Recurse);
+
+            foreach (var assembly in assemblyEnumerator.GetAssemblies()) {
+                DisplayVersion(assembly);
+            }
         }
 
 
@@ -34,10 +46,11 @@ namespace VersionTools.Cli {
         }
 
         private static void DisplayVersion(Assembly assembly) {
-            Console.WriteLine("Assembly:           {0}", assembly.GetName().Name);
-            Console.WriteLine("Assembly version:   {0}", assembly.GetAssemblyVersion());
-            Console.WriteLine("File version:       {0}", assembly.GetAssemblyFileVersion());
-            Console.WriteLine("Product version:    {0}", assembly.GetProductVersion());
+            Console.WriteLine(assembly.GetName().Name);
+            Console.WriteLine("  Location:           {0}", assembly.Location);
+            Console.WriteLine("  Assembly version:   {0}", assembly.GetAssemblyVersion());
+            Console.WriteLine("  File version:       {0}", assembly.GetAssemblyFileVersion());
+            Console.WriteLine("  Product version:    {0}", assembly.GetProductVersion());
             Console.WriteLine();
         }
     }
@@ -77,10 +90,14 @@ namespace VersionTools.Cli {
     }
 
     public class ListArgs {
-        [ArgRequired]
-        [ArgExistingFile]
-        [ArgDescription("The location of the assembly from which to extract the versions")]
+        [DefaultValue("")]
+        [ArgDescription("The file or directory path from which to read assemblies. " +
+                        "Defaults to the current directory")]
         public string Location { get; set; }
+
+        [DefaultValue(false)]
+        [ArgDescription("Visit child directories when listing assemblies")]
+        public bool Recurse { get; set; }
     }
 
     public class SetArgs {
