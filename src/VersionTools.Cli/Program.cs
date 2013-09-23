@@ -42,7 +42,7 @@ namespace VersionTools.Cli {
 
 
         public static void HandleSetAction(SetArgs args) {
-           Console.WriteLine("Set Action not implemented");
+
         }
 
         private static void DisplayVersion(Assembly assembly) {
@@ -84,7 +84,6 @@ namespace VersionTools.Cli {
             ArgUsage.GetStyledUsage<VersionArgs>().Write();
         }
 
-
         public static Action<ListArgs> ListAction { get; set; }
         public static Action<SetArgs>  SetAction  { get; set; }
     }
@@ -101,8 +100,8 @@ namespace VersionTools.Cli {
     }
 
     public class SetArgs {
-        [ArgDescription("The foo")]
-        public string Foo { get; set; }
+        [ArgDescription("The semantic version to set.")]
+        public string Semver { get; set; }
     }
     
     public class HelpArgs {
