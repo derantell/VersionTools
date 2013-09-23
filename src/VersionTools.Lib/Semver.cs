@@ -2,14 +2,17 @@
 using System.Text.RegularExpressions;
 
 namespace VersionTools.Lib {
-    public class Semver : IComparable<Semver> {
-        public int    Major       { get; private set; }
-        public int    Minor       { get; private set; }
-        public int    Patch       { get; private set; }
-        public string PreRelease  { get; private set; }
-        public string Build       { get; private set; }
-        public string FullVersion { get; private set; }
-        public string Version {
+    public class Semver : IComparable<Semver>, IEquatable<Semver> {
+        public int    Major        { get; private set; }
+        public int    Minor        { get; private set; }
+        public int    Patch        { get; private set; }
+        public string PreRelease   { get; private set; }
+        public string Build        { get; private set; }
+        public string FullVersion  { get; private set; }
+        public bool   IsPreRelease {
+            get { return !string.IsNullOrWhiteSpace(PreRelease); }
+        }
+        public string Version      {
             get { return string.Format("{0}.{1}.{2}", Major, Minor, Patch); }
         }
 
@@ -28,7 +31,7 @@ namespace VersionTools.Lib {
         public Semver() : this(0,0,0) {}
 
         public static Semver Parse(string value) {
-            var tokens = SemverTokenizer.Match(value);
+            var tokens = SemverTokenizer.Match(value ?? "");
 
             if (!tokens.Success) {
                 throw new FormatException("Invalid Semantic version");
@@ -52,11 +55,45 @@ namespace VersionTools.Lib {
             if (other.Minor != Minor) return Minor.CompareTo(other.Minor);
             if (other.Patch != Patch) return Patch.CompareTo(other.Patch);
 
-            return 0;
+            if ( other.IsPreRelease && !IsPreRelease) return  1;
+            if (!other.IsPreRelease &&  IsPreRelease) return -1;
+
+            var selfPre  = PreRelease.Split('.');
+            var otherPre = other.PreRelease.Split('.');
+
+            var shortest = Math.Min(selfPre.Length, otherPre.Length);
+
+            for (var i = 0; i < shortest; i++) {
+                if (IsNumber(selfPre[i]) && IsNumber(otherPre[i])) {
+                    var selfNum  = int.Parse(selfPre [i]);
+                    var otherNum = int.Parse(otherPre[i]);
+                    return selfNum.CompareTo(otherNum);
+                } 
+                if (IsNumber(selfPre[i]) ^ IsNumber(otherPre[i]) ) {
+                    return IsNumber(selfPre[i]) ? -1 : 1;
+                }
+
+                var lexicalOrder = string.Compare(selfPre[i], otherPre[i],  
+                    StringComparison.OrdinalIgnoreCase);
+
+                if (lexicalOrder != 0) return (lexicalOrder > 0) ? 1 : -1;
+            }
+
+            return selfPre.Length.CompareTo(otherPre.Length);
         }
+
+
+        public bool Equals(Semver other) {
+            return CompareTo(other) == 0;
+        }
+
 
         public override string ToString() {
             return FullVersion;
+        }
+
+        private static bool IsNumber(string value) {
+            return Regex.IsMatch(value, @"\d+");
         }
 
         private static readonly Regex SemverTokenizer = new Regex(

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Xunit;
 
 namespace VersionTools.Lib.Test {
@@ -73,6 +74,23 @@ namespace VersionTools.Lib.Test {
             }
         }
 
+        public class IsPreRelease_property {
+            [Fact]
+            public void should_return_true_when_version_is_a_pre_release() {
+                var semver = new Semver(1,2,3,"pre");
+                
+                Assert.True( semver.IsPreRelease );
+            }
+
+
+            [Fact]
+            public void should_return_false_when_version_is_not_a_pre_release() {
+                var semver = new Semver(1, 2, 3);
+
+                Assert.False( semver.IsPreRelease );
+            }
+
+        }
         public class CompareTo_method {
             [Fact]
             public void should_return_0_when_versions_are_equal() {
@@ -103,6 +121,35 @@ namespace VersionTools.Lib.Test {
             }
 
             [Fact]
+            public void should_return_minus_1_when_args_patch_nr_is_greater_than_own_patch_nr_other_things_equal() {
+                var v1 = Semver.Parse("1.2.1");
+                var v2 = Semver.Parse("1.2.2");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(-1, compared);
+            }
+
+            [Fact]
+            public void should_return_minus_1_when_args_minor_nr_is_greater_than_own_minor_nr_other_things_equal() {
+                var v1 = Semver.Parse("1.0.0");
+                var v2 = Semver.Parse("1.1.0");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(-1, compared);
+            }
+
+            [Fact]
+            public void should_return_minus_1_when_args_major_nr_is_greater_than_own_major_nr_other_things_equal() {
+                var v1 = Semver.Parse("2.1.0");
+                var v2 = Semver.Parse("3.1.0");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(-1, compared);
+            }
+            [Fact]
             public void should_return_1_when_args_patch_nr_is_less_than_own_patch_nr_other_things_equal() {
                 var v1 = Semver.Parse("1.2.3");
                 var v2 = Semver.Parse("1.2.2");
@@ -131,6 +178,189 @@ namespace VersionTools.Lib.Test {
 
                 Assert.Equal(1, compared);
             }
+
+
+            [Fact]
+            public void should_return_1_when_arg_is_prerelease() {
+                var v1 = Semver.Parse("1.2.3");
+                var v2 = Semver.Parse("1.2.3-pre");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(1, compared);
+            }
+
+
+            [Fact]
+            public void should_return_minus_1_when_self_is_prerelease() {
+                var v1 = Semver.Parse("1.2.3-pre");
+                var v2 = Semver.Parse("1.2.3");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(-1, compared);
+            }
+
+
+            [Fact]
+            public void should_return_1_when_own_prerelease_has_more_fields_than_other() {
+                var v1 = Semver.Parse("1.2.3-pre.1");
+                var v2 = Semver.Parse("1.2.3-pre");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(1, compared);
+            }
+
+            [Fact]
+            public void should_return_minus_1_when_own_prerelease_has_less_fields_than_other() {
+                var v1 = Semver.Parse("1.2.3-pre");
+                var v2 = Semver.Parse("1.2.3-pre.1");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(-1, compared);
+            }
+
+
+            [Fact]
+            public void should_return_1_when_own_numeric_prerelease_is_greater_than_other() {
+                var v1 = Semver.Parse("1.2.3-2");
+                var v2 = Semver.Parse("1.2.3-1");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(1, compared);
+            }
+
+            [Fact]
+            public void should_return_minus_1_when_own_numeric_prerelease_is_less_than_other() {
+                var v1 = Semver.Parse("1.2.3-1");
+                var v2 = Semver.Parse("1.2.3-2");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(-1, compared);
+            }
+
+
+            [Fact]
+            public void should_return_1_when_own_prerelease_is_alphanum_and_other_is_numeric() {
+                var v1 = Semver.Parse("1.2.3-alpha");
+                var v2 = Semver.Parse("1.2.3-1");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(1, compared);
+            }
+
+            [Fact]
+            public void should_return_minus_1_when_own_prerelease_is_numeric_and_other_is_alphanum() {
+                var v1 = Semver.Parse("1.2.3-1");
+                var v2 = Semver.Parse("1.2.3-alpha");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(-1, compared);
+            }
+
+
+            [Fact]
+            public void should_return_1_when_own_prerelease_is_lexically_greater_than_other() {
+                var v1 = Semver.Parse("1.2.3-beta");
+                var v2 = Semver.Parse("1.2.3-alpha");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(1,compared);
+            }
+
+
+            [Fact]
+            public void should_return_minus_1_when_own_prerelease_is_lexically_less_than_other() {
+                var v1 = Semver.Parse("1.2.3-alpha");
+                var v2 = Semver.Parse("1.2.3-beta");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(-1,compared);
+            }
+
+
+            [Fact]
+            public void should_ignore_case_when_comparing_prereleases() {
+                var v1 = Semver.Parse("1.2.3-alpha");
+                var v2 = Semver.Parse("1.2.3-ALPHA");
+
+                var compared = v1.CompareTo(v2);
+
+                Assert.Equal(0, compared);
+            }
+
+
+            [Fact]
+            public void should_handle_the_example_precedence_chain_on_the_semver_webpage() {
+                var versions = new[] {
+                    "1.0.0-alpha",
+                    "1.0.0-alpha.1",
+                    "1.0.0-alpha.beta",
+                    "1.0.0-beta",
+                    "1.0.0-beta.2",
+                    "1.0.0-beta.11",
+                    "1.0.0-rc.1",
+                    "1.0.0"
+                }
+                .Select(Semver.Parse)
+                .ToArray();
+
+                for (var i = 1; i < versions.Length; i++) {
+                    var comparedToPrevious = versions[i].CompareTo(versions[i - 1]);
+                    Assert.Equal(1, comparedToPrevious);
+                }
+            }
+        }
+
+        public class Equals_method {
+            [Fact]
+            public void should_return_true_when_versions_are_lexically_equal() {
+                var v1 = Semver.Parse("1.2.3-beta");
+                var v2 = Semver.Parse("1.2.3-beta");
+
+                var areEqual = v1.Equals(v2);
+                Assert.True(areEqual);
+            }
+
+
+            [Fact]
+            public void should_ignore_build_info() {
+                var v1 = Semver.Parse("1.2.3-beta+foo");
+                var v2 = Semver.Parse("1.2.3-beta");
+
+                var areEqual = v1.Equals(v2);
+                Assert.True(areEqual);
+            }
+
+
+            [Fact]
+            public void should_ignore_case() {
+                var v1 = Semver.Parse("1.2.3-beta");
+                var v2 = Semver.Parse("1.2.3-BETA");
+
+                var areEqual = v1.Equals(v2);
+                Assert.True(areEqual);
+            }
+
+
+            [Fact]
+            public void should_return_false_when_versions_are_not_equal() {
+                var v1 = Semver.Parse("1.2.4-beta");
+                var v2 = Semver.Parse("1.2.3-beta");
+
+                var areEqual = v1.Equals(v2);
+                Assert.False(areEqual);
+                
+            }
+
         }
     }
 }

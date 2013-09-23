@@ -28,7 +28,7 @@ namespace VersionTools.Lib {
                     assemblies.Add(assembly);
                 }
                 catch {
-                    // Can we test the dotnetness of a dll/exe in a better way?
+                    // TODO: Can we test the dotnetness of a dll/exe in a better way?
                 }
             }
 
@@ -39,6 +39,7 @@ namespace VersionTools.Lib {
                 }
             }
         } 
+
         private readonly string _directory;
         private readonly bool   _recurse;
     }

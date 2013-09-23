@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
 using PowerArgs;
 using VersionTools.Lib;
 
@@ -42,7 +44,28 @@ namespace VersionTools.Cli {
 
 
         public static void HandleSetAction(SetArgs args) {
+            if (args.Semver != "") {
+                var semver = Semver.Parse(args.Semver);
+                var locator = new AssemblyInfoLocator(Directory.GetCurrentDirectory(), args.Recurse);
 
+                var version = new Version {
+                    Assembly = semver.Version + ".0",
+                    File = semver.FullVersion,
+                    Product = FormatProductVersion("My lib", semver)
+                };
+
+                foreach (var file in locator.LocateAssemblyInfoFiles()) {
+                    AssemblyVersionSetter.SetVersion(file, version);
+                }
+            }
+        }
+
+        private static string FormatProductVersion(string product, Semver version) {
+            var productVersion = product + " v" + version.Version;
+            if (version.IsPreRelease) {
+                productVersion += " " + version.PreRelease.Replace('.', ' ');
+            }
+            return productVersion;
         }
 
         private static void DisplayVersion(Assembly assembly) {
@@ -53,6 +76,91 @@ namespace VersionTools.Cli {
             Console.WriteLine("  Product version:    {0}", assembly.GetProductVersion());
             Console.WriteLine();
         }
+    }
+
+    class AssemblyVersionSetter {
+        public static void SetVersion(string file, Version version) {
+            if(!File.Exists(file)) return;
+
+            var lines = File.ReadAllLines(file);
+            var newLines = new List<string>();
+
+            foreach (var line in lines) {
+                newLines.Add( AttributeMatcher.Replace(line, "//$0") );
+            }
+
+            newLines.Add("// Assembly versions set by aver.exe");
+            newLines.Add("[assembly: AssemblyVersion(\""              + version.Assembly + "\")]");
+            newLines.Add("[assembly: AssemblyFileVersion(\""          + version.File     + "\")]");
+            newLines.Add("[assembly: AssemblyInformationalVersion(\"" + version.Product  + "\")]");
+
+            File.WriteAllLines(file, newLines, Encoding.UTF8);
+        }
+
+        private static readonly Regex AttributeMatcher = 
+            new Regex(@"\[assembly:\s*Assembly(Informational|File)?Version\("".*?""\)\]",
+                RegexOptions.Compiled);
+    }
+
+    class Version {
+        public string Assembly { get; set; }
+        public string File     { get; set; }
+        public string Product  { get; set; }
+    }
+
+    class AssemblyInfoLocator {
+        public AssemblyInfoLocator( string rootDirectory, bool recurse = false) {
+            _recurse = recurse;
+            _rootDirectory = rootDirectory;
+        }
+
+        public string[] LocateAssemblyInfoFiles() {
+            if (!_recurse) {
+                string filepath;
+
+                if (TryGetAssemblyInfoFile(_rootDirectory, out filepath)) {
+                    return new[] {filepath};
+                }
+
+                if (TryGetAssemblyInfoFile(_rootDirectory + @"\Properties", out filepath)) {
+                    return new[] {filepath};
+                }
+                return new string[0];
+            }
+
+            var files = new List<string>();
+            RecurseFindAssemblyInfo(_rootDirectory, files);
+
+            return files.ToArray();
+        }
+
+        private void RecurseFindAssemblyInfo(string directory, List<string> files) {
+            string filepath;
+            if (TryGetAssemblyInfoFile(directory, out filepath)) {
+                files.Add(filepath);
+            }
+
+            foreach (var dir in Directory.GetDirectories(directory)) {
+                RecurseFindAssemblyInfo(dir, files);
+            }
+        }
+
+        private bool TryGetAssemblyInfoFile(string directory, out string filePath) {
+            if (!Directory.Exists(directory)) {
+                filePath = null;
+                return false;
+            }
+
+            filePath = Directory
+                .GetFiles(directory)
+                .SingleOrDefault(f => Path.GetFileName(f).Equals(AssemblyInfoCs));
+
+            return (filePath != null);
+        }
+
+        private readonly bool _recurse;
+        private readonly string _rootDirectory;
+        private const string AssemblyInfoCs = "AssemblyInfo.cs";
     }
 
     [ArgExample("ver list MyLib.dll", "Displays the versions of the MyLib.dll assembly")]
@@ -100,8 +208,13 @@ namespace VersionTools.Cli {
     }
 
     public class SetArgs {
+        [DefaultValue("")]
         [ArgDescription("The semantic version to set.")]
         public string Semver { get; set; }
+
+        [DefaultValue(false)]
+        [ArgDescription("Visit child directories when looking for AssemblyInfo files")]
+        public bool Recurse { get; set; }
     }
     
     public class HelpArgs {
