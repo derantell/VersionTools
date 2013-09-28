@@ -45,6 +45,20 @@ namespace VersionTools.Lib.Test {
             }
         }
 
+        public class IsValidSemver_method {
+            [Fact]
+            public void should_return_true_when_arg_is_a_valid_semver_version() {
+                Assert.True( Semver.IsValidSemver("1.2.3-pre+build"));
+            }
+
+
+            [Fact]
+            public void should_return_false_when_args_is_not_a_valid_semver_version() {
+                Assert.False( Semver.IsValidSemver("foobar"));
+            }
+
+        }
+
         public class FullVersion_property {
             [Fact]
             public void should_display_the_full_version_including_prerelease_and_build_info() {

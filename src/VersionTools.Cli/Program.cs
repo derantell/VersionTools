@@ -55,7 +55,7 @@ namespace VersionTools.Cli {
                 };
 
                 foreach (var file in locator.LocateAssemblyInfoFiles()) {
-                    AssemblyVersionSetter.SetVersion(file, version);
+                    AssemblyVersionSetter.SetVersion(file.Path, file.VersionContext.Version);
                 }
             }
         }
@@ -114,34 +114,46 @@ namespace VersionTools.Cli {
             _rootDirectory = rootDirectory;
         }
 
-        public string[] LocateAssemblyInfoFiles() {
+        public AssemblyVersionFileInfo[] LocateAssemblyInfoFiles(VersionContext versionContext = null) {
+            versionContext = versionContext ?? new VersionContext {ProjectName = "", Version = "0.0.0"};
+            versionContext = UpdateVersionContext(_rootDirectory, versionContext);
+
             if (!_recurse) {
                 string filepath;
 
                 if (TryGetAssemblyInfoFile(_rootDirectory, out filepath)) {
-                    return new[] {filepath};
+                    return new[] {new AssemblyVersionFileInfo {
+                        Path = filepath, VersionContext = versionContext
+                    }};
                 }
 
                 if (TryGetAssemblyInfoFile(_rootDirectory + @"\Properties", out filepath)) {
-                    return new[] {filepath};
+                    return new[] {new AssemblyVersionFileInfo {
+                        Path = filepath, VersionContext = versionContext
+                    }};
                 }
-                return new string[0];
+                
+                return new AssemblyVersionFileInfo[0];
             }
 
-            var files = new List<string>();
-            RecurseFindAssemblyInfo(_rootDirectory, files);
+            var files = new List<AssemblyVersionFileInfo>();
+            RecurseFindAssemblyInfo(_rootDirectory, files, versionContext);
 
             return files.ToArray();
         }
 
-        private void RecurseFindAssemblyInfo(string directory, List<string> files) {
+        private void RecurseFindAssemblyInfo(string directory, List<AssemblyVersionFileInfo> files, VersionContext context) {
+            var newContext = UpdateVersionContext(directory, context);
             string filepath;
             if (TryGetAssemblyInfoFile(directory, out filepath)) {
-                files.Add(filepath);
+                files.Add(new AssemblyVersionFileInfo {
+                    Path = filepath,
+                    VersionContext = context
+                });
             }
 
             foreach (var dir in Directory.GetDirectories(directory)) {
-                RecurseFindAssemblyInfo(dir, files);
+                RecurseFindAssemblyInfo(dir, files, newContext);
             }
         }
 
@@ -153,14 +165,51 @@ namespace VersionTools.Cli {
 
             filePath = Directory
                 .GetFiles(directory)
-                .SingleOrDefault(f => Path.GetFileName(f).Equals(AssemblyInfoCs));
+                .SingleOrDefault(f => AssemblyInfoCs.Equals( Path.GetFileName(f)));
 
             return (filePath != null);
         }
 
-        private readonly bool _recurse;
+        private VersionContext UpdateVersionContext(string directory, VersionContext currentContext) {
+            var newContext  = new VersionContext {
+                ProjectName = currentContext.ProjectName,
+                Version     = currentContext.Version
+            };
+
+            var files  = Directory.GetFiles(directory);
+            var csproj = files.FirstOrDefault(f => ".csproj".Equals(Path.GetExtension(f)));
+
+            if (csproj != null) {
+                newContext.ProjectName = Path.GetFileNameWithoutExtension(csproj);
+            }
+
+            var versionFile = files
+                .FirstOrDefault(f => "version".Equals(
+                    Path.GetFileNameWithoutExtension(f),
+                    StringComparison.InvariantCultureIgnoreCase));
+
+            if (versionFile != null) {
+                var version = File.ReadAllText(versionFile).Trim();
+                newContext.Version = version;
+            }
+
+            return newContext;
+        }
+
+        private readonly bool   _recurse;
         private readonly string _rootDirectory;
-        private const string AssemblyInfoCs = "AssemblyInfo.cs";
+        private const    string AssemblyInfoCs = "AssemblyInfo.cs";
+        
+    }
+
+    public class AssemblyVersionFileInfo {
+        public string Path { get; set; }
+        public VersionContext VersionContext { get; set; }
+    }
+   
+    public class VersionContext {
+        public string Version { get; set; }
+        public string ProjectName { get; set; }
     }
 
     [ArgExample("ver list MyLib.dll", "Displays the versions of the MyLib.dll assembly")]
@@ -209,12 +258,16 @@ namespace VersionTools.Cli {
 
     public class SetArgs {
         [DefaultValue("")]
-        [ArgDescription("The semantic version to set.")]
+        [ArgDescription("The semantic version to set")]
         public string Semver { get; set; }
 
         [DefaultValue(false)]
         [ArgDescription("Visit child directories when looking for AssemblyInfo files")]
         public bool Recurse { get; set; }
+
+        [DefaultValue("")]
+        [ArgDescription("The name of the product the assembly is built for")]
+        public string Product { get; set; }
     }
     
     public class HelpArgs {

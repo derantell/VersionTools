@@ -49,6 +49,10 @@ namespace VersionTools.Lib {
             return semver;
         }
 
+        public static bool IsValidSemver(string version) {
+            return SemverTokenizer.IsMatch(version ?? "");
+        }
+
         public int CompareTo(Semver other) {
             if (other       == null)  return 1;
             if (other.Major != Major) return Major.CompareTo(other.Major);
@@ -93,17 +97,19 @@ namespace VersionTools.Lib {
         }
 
         private static bool IsNumber(string value) {
-            return Regex.IsMatch(value, @"\d+");
+            return Regex.IsMatch(value, @"^(?:0|[1-9]\d*)$");
         }
 
-        private static readonly Regex SemverTokenizer = new Regex(
-            @"^       ### Semver tokenizer ###
-              (?<major>\d+)                         # The major version number
-              \.(?<minor>\d+)                       # The minor version number
-              \.(?<patch>\d+)                       # The patch number
-              (?:-(?<prerelease>[.a-z0-9-]+))?      # Pre-release version, should be further split on dots to determine precedence 
-              (?:\+(?<buildmetadata>[.a-z0-9-]+))?  # Build meta data. This field is not used in precendece calculations
-            $",
-              RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.IgnoreCase);
+        private static readonly Regex SemverTokenizer = 
+            new Regex(
+                @"^       ### Semver tokenizer ###
+                  (?<major>\d+)                         # The major version number
+                  \.(?<minor>\d+)                       # The minor version number
+                  \.(?<patch>\d+)                       # The patch number
+                  (?:-(?<prerelease>[.a-z0-9-]+))?      # Pre-release version, should be further split on dots to determine precedence 
+                  (?:\+(?<buildmetadata>[.a-z0-9-]+))?  # Build meta data. This field is not used in precendece calculations
+                $",
+                RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.IgnoreCase
+            );
     }
 }
