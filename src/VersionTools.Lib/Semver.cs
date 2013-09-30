@@ -8,7 +8,14 @@ namespace VersionTools.Lib {
         public int    Patch        { get; private set; }
         public string PreRelease   { get; private set; }
         public string Build        { get; private set; }
-        public string FullVersion  { get; private set; }
+        public string FullVersion {
+            get {
+                var fullVersion = string.Format("{0}.{1}.{2}", Major, Minor, Patch);
+                if (PreRelease != "") fullVersion += ("-" + PreRelease);
+                if (Build      != "") fullVersion += ("+" + Build);
+                return fullVersion;
+            }
+        }
         public bool   IsPreRelease {
             get { return !string.IsNullOrWhiteSpace(PreRelease); }
         }
@@ -22,10 +29,6 @@ namespace VersionTools.Lib {
             Patch      = patch;
             PreRelease = prerelease;
             Build      = build;
-
-            FullVersion = string.Format("{0}.{1}.{2}", Major, Minor, Patch);
-            if (PreRelease != "") FullVersion += ("-" + PreRelease);
-            if (Build      != "") FullVersion += ("+" + Build);
         }
 
         public Semver() : this(0,0,0) {}
@@ -38,15 +41,18 @@ namespace VersionTools.Lib {
             }
 
             var semver = new Semver {
-                Major      = int.Parse(tokens.Groups["major"].Value),
-                Minor      = int.Parse(tokens.Groups["minor"].Value),
-                Patch      = int.Parse(tokens.Groups["patch"].Value),
-                PreRelease = tokens.Groups["prerelease"].Value,
-                Build      = tokens.Groups["buildmetadata"].Value,
-                FullVersion = value,
+                Major       = int.Parse(tokens.Groups["major"].Value),
+                Minor       = int.Parse(tokens.Groups["minor"].Value),
+                Patch       = int.Parse(tokens.Groups["patch"].Value),
+                PreRelease  = tokens.Groups["prerelease"].Value,
+                Build       = tokens.Groups["buildmetadata"].Value,
             };
 
             return semver;
+        }
+
+        public void OverrideBuild( string newBuild ) {
+            Build = newBuild;
         }
 
         public static bool IsValidSemver(string version) {
@@ -95,6 +101,8 @@ namespace VersionTools.Lib {
         public override string ToString() {
             return FullVersion;
         }
+
+        public static readonly Semver NoVersion = new Semver();
 
         private static bool IsNumber(string value) {
             return Regex.IsMatch(value, @"^(?:0|[1-9]\d*)$");

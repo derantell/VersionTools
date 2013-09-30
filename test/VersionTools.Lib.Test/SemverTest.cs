@@ -59,6 +59,18 @@ namespace VersionTools.Lib.Test {
 
         }
 
+        public class OverrideBuild_method {
+            [Fact]
+            public void should_set_the_build_info_of_the_version() {
+                var version = "1.2.3-pre+build";
+                var semver = Semver.Parse(version);
+
+                semver.OverrideBuild("new.build");
+                Assert.Equal("1.2.3-pre+new.build", semver.FullVersion);
+            }
+
+        }
+
         public class FullVersion_property {
             [Fact]
             public void should_display_the_full_version_including_prerelease_and_build_info() {

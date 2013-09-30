@@ -12,74 +12,110 @@ using VersionTools.Lib;
 namespace VersionTools.Cli {
     class Program {
         static Program()  {
-            VersionArgs.ListAction = HandleListAction;
-            VersionArgs.SetAction  = HandleSetAction;
+            ProgramArgs.ListAction = HandleListAction;
+            ProgramArgs.SetAction  = HandleSetAction;
         }
+
+        public static ProgramArgs Args { get; set; }
 
         static void Main(string[] cmdArgs) {
             if (cmdArgs.Length == 0) {
-                ArgUsage.GetStyledUsage<VersionArgs>().Write();
+                ArgUsage.GetStyledUsage<ProgramArgs>().Write();
                 return;
             }
 
             try {
-                Args.InvokeAction<VersionArgs>(cmdArgs);
+                Args = PowerArgs.Args.Parse<ProgramArgs>(cmdArgs);
+                PowerArgs.Args.InvokeAction<ProgramArgs>(cmdArgs);
             }
-            catch (ArgException e) {
+            catch (Exception e) {
                 Console.Error.Write(e.Message);
             }
         }
 
         private static void HandleListAction(ListArgs args) {
-            if (args.Location == "") {
-                args.Location = Directory.GetCurrentDirectory();
+            if (Args.Location == "") {
+                Args.Location = Directory.GetCurrentDirectory();
             }
 
-            var assemblyEnumerator = new AssemblyEnumerator(args.Location, args.Recurse);
+            var assemblyEnumerator = new AssemblyEnumerator(Args.Location, Args.Recurse);
 
             foreach (var assembly in assemblyEnumerator.GetAssemblies()) {
                 DisplayVersion(assembly);
             }
         }
 
+        public static DirectoryInfo RootDirectory {
+            get {
+                if (string.IsNullOrWhiteSpace(Args.Location)) {
+                    return new DirectoryInfo(Directory.GetCurrentDirectory());
+                }
+                return new DirectoryInfo(Args.Location);
+            }
+        }
 
         public static void HandleSetAction(SetArgs args) {
-            if (args.Semver != "") {
-                var semver = Semver.Parse(args.Semver);
-                var locator = new AssemblyInfoLocator(Directory.GetCurrentDirectory(), args.Recurse);
+            var version  = args.Version.Length > 0 ? Semver.Parse(args.Version) : Semver.NoVersion;
+            var hasBuild = args.Build.Length > 0;
+            var scanner  = new ProjectScanner();
 
-                var version = new Version {
-                    Assembly = semver.Version + ".0",
-                    File = semver.FullVersion,
-                    Product = FormatProductVersion("My lib", semver)
-                };
+            var projects = scanner.Scan();
 
-                foreach (var file in locator.LocateAssemblyInfoFiles()) {
-                    AssemblyVersionSetter.SetVersion(file.Path, file.VersionContext.Version);
+            foreach (var project in projects) {
+                if (project.Version == Semver.NoVersion) {
+                    project.Version = version;
                 }
+                if (hasBuild) {
+                    project.Version.OverrideBuild(args.Build);
+                }
+                var assemblyVersion = AssemblyVersion.FromSemver(project.Version);
+                AssemblyVersionSetter.SetVersion(project.AssemlyInfo, assemblyVersion);
             }
         }
 
-        private static string FormatProductVersion(string product, Semver version) {
-            var productVersion = product + " v" + version.Version;
-            if (version.IsPreRelease) {
-                productVersion += " " + version.PreRelease.Replace('.', ' ');
-            }
-            return productVersion;
-        }
-
+       
+ 
         private static void DisplayVersion(Assembly assembly) {
-            Console.WriteLine(assembly.GetName().Name);
-            Console.WriteLine("  Location:           {0}", assembly.Location);
-            Console.WriteLine("  Assembly version:   {0}", assembly.GetAssemblyVersion());
-            Console.WriteLine("  File version:       {0}", assembly.GetAssemblyFileVersion());
-            Console.WriteLine("  Product version:    {0}", assembly.GetProductVersion());
+            Out(Verbose.Assembly, assembly.GetName().Name);
+            Out(Verbose.Version,  "  Location:           {0}", assembly.Location);
+            Out(Verbose.Version,  "  Assembly version:   {0}", assembly.GetAssemblyVersion());
+            Out(Verbose.Version,  "  File version:       {0}", assembly.GetAssemblyFileVersion());
+            Out(Verbose.Version,  "  Product version:    {0}", assembly.GetProductVersion());
+            Out();
+        }
+
+        
+
+        public static void Out() {
             Console.WriteLine();
+        }
+
+        public static void Out(string verbose, string format, params object[] args) {
+            if (Args.Verbose) format = verbose + format;
+            Console.WriteLine(format, args);
+        }
+
+
+        public static void VerboseOut(string verbose, string format, params object[] args) {
+            if (!Args.Verbose) return;
+            Console.WriteLine(verbose + format, args);
+        }
+
+        public static void Err(string verbose, string format, params object[] args) {
+            if (Args.Verbose) format = verbose + format;
+            Console.Error.WriteLine(format, args);
         }
     }
 
+    public struct Verbose {
+        public const string Scanning = "[SCANNING] > ";
+        public const string Assembly = "[ASSEMBLY] > ";
+        public const string Error    = "[ERROR]    > ";
+        public const string Version  = "[VERSION]  > ";
+    }
+    
     class AssemblyVersionSetter {
-        public static void SetVersion(string file, Version version) {
+        public static void SetVersion(string file, AssemblyVersion version) {
             if(!File.Exists(file)) return;
 
             var lines = File.ReadAllLines(file);
@@ -102,123 +138,112 @@ namespace VersionTools.Cli {
                 RegexOptions.Compiled);
     }
 
-    class Version {
+    public class Project {
+        public string Name { get; set; }
+        public string Path { get; set; }
+        public Semver Version { get; set; }
+        public string AssemlyInfo {get { return Path + @"\Properties\AssemblyInfo.cs"; }}
+    }
+
+    public class AssemblyVersion {
+        public AssemblyVersion() {
+            Assembly = File = Product = DefaultVersion;
+        }
+
         public string Assembly { get; set; }
         public string File     { get; set; }
         public string Product  { get; set; }
-    }
 
-    class AssemblyInfoLocator {
-        public AssemblyInfoLocator( string rootDirectory, bool recurse = false) {
-            _recurse = recurse;
-            _rootDirectory = rootDirectory;
-        }
-
-        public AssemblyVersionFileInfo[] LocateAssemblyInfoFiles(VersionContext versionContext = null) {
-            versionContext = versionContext ?? new VersionContext {ProjectName = "", Version = "0.0.0"};
-            versionContext = UpdateVersionContext(_rootDirectory, versionContext);
-
-            if (!_recurse) {
-                string filepath;
-
-                if (TryGetAssemblyInfoFile(_rootDirectory, out filepath)) {
-                    return new[] {new AssemblyVersionFileInfo {
-                        Path = filepath, VersionContext = versionContext
-                    }};
-                }
-
-                if (TryGetAssemblyInfoFile(_rootDirectory + @"\Properties", out filepath)) {
-                    return new[] {new AssemblyVersionFileInfo {
-                        Path = filepath, VersionContext = versionContext
-                    }};
-                }
-                
-                return new AssemblyVersionFileInfo[0];
-            }
-
-            var files = new List<AssemblyVersionFileInfo>();
-            RecurseFindAssemblyInfo(_rootDirectory, files, versionContext);
-
-            return files.ToArray();
-        }
-
-        private void RecurseFindAssemblyInfo(string directory, List<AssemblyVersionFileInfo> files, VersionContext context) {
-            var newContext = UpdateVersionContext(directory, context);
-            string filepath;
-            if (TryGetAssemblyInfoFile(directory, out filepath)) {
-                files.Add(new AssemblyVersionFileInfo {
-                    Path = filepath,
-                    VersionContext = context
-                });
-            }
-
-            foreach (var dir in Directory.GetDirectories(directory)) {
-                RecurseFindAssemblyInfo(dir, files, newContext);
-            }
-        }
-
-        private bool TryGetAssemblyInfoFile(string directory, out string filePath) {
-            if (!Directory.Exists(directory)) {
-                filePath = null;
-                return false;
-            }
-
-            filePath = Directory
-                .GetFiles(directory)
-                .SingleOrDefault(f => AssemblyInfoCs.Equals( Path.GetFileName(f)));
-
-            return (filePath != null);
-        }
-
-        private VersionContext UpdateVersionContext(string directory, VersionContext currentContext) {
-            var newContext  = new VersionContext {
-                ProjectName = currentContext.ProjectName,
-                Version     = currentContext.Version
+        public static AssemblyVersion FromSemver(Semver version) {
+            return new AssemblyVersion {
+                Assembly = version.Version + ".0",
+                File = version.FullVersion,
+                Product = version.FullVersion
             };
-
-            var files  = Directory.GetFiles(directory);
-            var csproj = files.FirstOrDefault(f => ".csproj".Equals(Path.GetExtension(f)));
-
-            if (csproj != null) {
-                newContext.ProjectName = Path.GetFileNameWithoutExtension(csproj);
-            }
-
-            var versionFile = files
-                .FirstOrDefault(f => "version".Equals(
-                    Path.GetFileNameWithoutExtension(f),
-                    StringComparison.InvariantCultureIgnoreCase));
-
-            if (versionFile != null) {
-                var version = File.ReadAllText(versionFile).Trim();
-                newContext.Version = version;
-            }
-
-            return newContext;
         }
 
-        private readonly bool   _recurse;
-        private readonly string _rootDirectory;
-        private const    string AssemblyInfoCs = "AssemblyInfo.cs";
-        
+        public const string DefaultVersion = "1.0.0.0";
     }
 
-    public class AssemblyVersionFileInfo {
-        public string Path { get; set; }
-        public VersionContext VersionContext { get; set; }
+    public class ProjectScanner {
+
+        public Project[] Scan() {
+            var projects = new List<Project>();
+
+            ScanDirectory(Program.RootDirectory, projects);
+
+            return projects.ToArray();
+        }
+
+        private void ScanDirectory(DirectoryInfo directory, List<Project> projects ) {
+            Program.VerboseOut(Verbose.Scanning, "Entering directory {0}", directory.FullName );
+            var projFile = directory.GetFiles("*.csproj").SingleOrDefault();
+
+            if (projFile != null) {
+                Program.VerboseOut(Verbose.Scanning, "Found project {0}", projFile.Name);
+
+                var project = new Project {
+                    Name = projFile.Name,
+                    Path = projFile.DirectoryName,
+                    Version = Semver.NoVersion
+                };
+
+                var versionFile = directory.GetFiles("version.txt").SingleOrDefault();
+                if (versionFile != null) {
+                    Program.VerboseOut(Verbose.Scanning, "Found version.txt");
+                    var parser = new VersionFileParser(versionFile);
+                    var version = parser.GetVersion();
+
+                    Program.VerboseOut(Verbose.Scanning, "Parsed version: {0}", version);
+                    project.Version = version;
+                }
+                    
+                projects.Add(project);
+            }
+
+            if (Program.Args.Recurse) {
+                var directories = directory.GetDirectories();
+                foreach (var directoryInfo in directories) {
+                    ScanDirectory(directoryInfo, projects);
+                }
+            }
+        }
     }
-   
-    public class VersionContext {
-        public string Version { get; set; }
-        public string ProjectName { get; set; }
+
+    public class VersionFileParser {
+        public VersionFileParser( FileInfo file ) {
+            _file = file;
+        }
+    
+        public Semver GetVersion() {
+            var line = File.ReadLines(_file.FullName).First( l => !string.IsNullOrWhiteSpace(l));
+            return Semver.Parse(line);
+        }
+
+        private readonly FileInfo _file;
     }
+
 
     [ArgExample("ver list MyLib.dll", "Displays the versions of the MyLib.dll assembly")]
     [ArgExample("ver set MyLib.dll -semver 1.3.4", "Sets the version of MyLib.dll to 1.3.4")]
-    public class VersionArgs {
+    public class ProgramArgs {
         [ArgRequired]
         [ArgPosition(0)]
-        [ArgDescription("list to list versions, set to set versions")]
+        [ArgDescription("<list> to list versions, <set> to set versions")]
         public string Action { get; set; }
+
+        [DefaultValue("")]
+        [ArgPosition(1)]
+        [ArgDescription("The file or directory path from which to read assemblies. " +
+                        "Defaults to the current directory")]
+        public string Location { get; set; }
+
+        [ArgDescription("Display verbose output")]
+        public bool Verbose { get; set; }
+
+        [DefaultValue(false)]
+        [ArgDescription("Visit child directories when listing assemblies or updating versions")]
+        public bool Recurse { get; set; }
 
         [ArgDescription("List versions of specified assemblies")]
         public ListArgs ListArgs { get; set; }
@@ -238,40 +263,33 @@ namespace VersionTools.Cli {
         }
 
         public static void Help(HelpArgs args) {
-            ArgUsage.GetStyledUsage<VersionArgs>().Write();
+            ArgUsage.GetStyledUsage<ProgramArgs>().Write();
         }
 
         public static Action<ListArgs> ListAction { get; set; }
         public static Action<SetArgs>  SetAction  { get; set; }
     }
 
-    public class ListArgs {
-        [DefaultValue("")]
-        [ArgDescription("The file or directory path from which to read assemblies. " +
-                        "Defaults to the current directory")]
-        public string Location { get; set; }
-
-        [DefaultValue(false)]
-        [ArgDescription("Visit child directories when listing assemblies")]
-        public bool Recurse { get; set; }
-    }
+    public class ListArgs {}
 
     public class SetArgs {
         [DefaultValue("")]
-        [ArgDescription("The semantic version to set")]
-        public string Semver { get; set; }
-
-        [DefaultValue(false)]
-        [ArgDescription("Visit child directories when looking for AssemblyInfo files")]
-        public bool Recurse { get; set; }
+        [ArgDescription("The version to set, may either be a valid semantic version or " +
+                        "a valid assembly version, e.g. 1.2.3.4")]
+        public string Version { get; set; }
 
         [DefaultValue("")]
         [ArgDescription("The name of the product the assembly is built for")]
         public string Product { get; set; }
+
+        [DefaultValue("")]
+        [ArgDescription("Build meta data. May contain ., -, 0-9, a-z")]
+        public string Build { get; set; }
+
+        [DefaultValue(true)]
+        [ArgDescription("Tells aver to scan the directory(ies) for projects")]
+        public bool Scan { get; set; }
     }
     
-    public class HelpArgs {
-        [ArgDescription("The bar")]
-        public string Bar { get; set; }
-    }
+    public class HelpArgs {}
 }
