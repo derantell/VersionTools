@@ -30,7 +30,7 @@ namespace VersionTools.Cli {
                 return 0;
             }
             catch (Exception e) {
-                if (Args.verbose) {
+                if ( Args != null && Args.verbose) {
                     Err(Verbose.Error, "{0}", e);
                 } else {
                     Console.Error.WriteLine(e.Message);
@@ -69,6 +69,10 @@ namespace VersionTools.Cli {
             var scanner  = new ProjectScanner();
 
             var projects = scanner.Scan(version, args.scan);
+            
+            if (args.tcbuildno) {
+                Console.Out.WriteLine("##teamcity[buildnumber '{0}']", version);
+            }
 
             foreach (var project in projects) {
                 VerboseOut(Verbose.Version, "Versioning project {0}", project.Name);
@@ -341,6 +345,9 @@ namespace VersionTools.Cli {
     }
 
     public class setArgs {
+        [ArgDescription("Outputs the root version as a teamcity service message")]
+        public bool tcbuildno { get; set; }
+
         [DefaultValue("")]
         [ArgDescription("The semantic version to set. When set, this version overrides any version " +
                         "specified in version.txt files.")]
