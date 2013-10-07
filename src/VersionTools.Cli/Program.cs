@@ -30,7 +30,11 @@ namespace VersionTools.Cli {
                 return 0;
             }
             catch (Exception e) {
-                Console.Error.Write(e.Message);
+                if (Args.verbose) {
+                    Err(Verbose.Error, "{0}", e);
+                } else {
+                    Console.Error.WriteLine(e.Message);
+                }
                 return 1;
             }
         }
@@ -125,6 +129,15 @@ namespace VersionTools.Cli {
         public const string Version  = "[VERSIONING] > ";
     }
     
+    class FileUtil {
+        public static void AssertWritable(string filePath) {
+            var attributes = File.GetAttributes(filePath);
+            if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly) {
+                File.SetAttributes(filePath, attributes & ~FileAttributes.ReadOnly);
+            }
+        }
+    }
+
     class AssemblyVersionSetter {
         public static void SetVersion(string file, Semver version) {
             if(!File.Exists(file)) return;
@@ -144,11 +157,12 @@ namespace VersionTools.Cli {
             newLines.Add("[assembly: AssemblyFileVersion(\""          + assemblyVersion.File     + "\")]");
             newLines.Add("[assembly: AssemblyInformationalVersion(\"" + assemblyVersion.Informational  + "\")]");
 
+            FileUtil.AssertWritable(file);
             File.WriteAllLines(file, newLines, Encoding.UTF8);
         }
 
         private static readonly Regex AttributeMatcher = 
-            new Regex(@"\[assembly:\s*Assembly(Informational|File)?Version\("".*?""\)\]",
+            new Regex(@"\[assembly:\s*Assembly(Informational|File)?Version\(\s*"".*?""\s*\)\]",
                 RegexOptions.Compiled);
     }
 
@@ -169,6 +183,7 @@ namespace VersionTools.Cli {
                 }
             }
 
+            FileUtil.AssertWritable(file);
             File.WriteAllLines(file, newLines, Encoding.UTF8);
         }
 
