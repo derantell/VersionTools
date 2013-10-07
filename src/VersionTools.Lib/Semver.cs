@@ -16,7 +16,7 @@ namespace VersionTools.Lib {
 
         public string FullVersion {
             get {
-                var fullVersion = string.Format("{0}.{1}.{2}", Major, Minor, Patch);
+                var fullVersion = Version;
                 if (PreRelease != "") fullVersion += ("-" + PreRelease);
                 if (Build      != "") fullVersion += ("+" + Build);
                 return fullVersion;
@@ -98,6 +98,18 @@ namespace VersionTools.Lib {
 
         public bool Equals(Semver other) {
             return CompareTo(other) == 0;
+        }
+
+        public override bool Equals(object obj) {
+            if (obj == null)
+                return false;
+            if (obj.GetType() != typeof (Semver))
+                return false;
+            return Equals((Semver) obj);
+        }
+
+        public override int GetHashCode() {
+            return ToString("P").GetHashCode();
         }
 
         public static bool operator ==(Semver ver1, Semver ver2) {

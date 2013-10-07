@@ -411,8 +411,52 @@ namespace VersionTools.Lib.Test {
 
                 var areEqual = v1.Equals(v2);
                 Assert.False(areEqual);
-                
             }
+
+
+            [Fact]
+            public void should_return_false_when_other_object_is_null() {
+                var v1 = Semver.Parse("1.2.4-beta");
+                
+                Assert.False( v1.Equals(null));
+            }
+
+            [Fact]
+            public void should_return_false_when_other_object_is_not_a_semver() {
+                var v1 = Semver.Parse("1.2.4-beta");
+                
+                Assert.False( v1.Equals(new object()));
+            }
+ 
+        }
+
+        public class GetHashCode_method {
+            [Fact]
+            public void should_return_the_same_code_for_equal_versions() {
+                var code1 = Semver.Parse("1.2.3-beta");
+                var code2 = Semver.Parse("1.2.3-beta");
+
+                Assert.Equal( code1.GetHashCode(), code2.GetHashCode());
+            }
+
+
+            [Fact]
+            public void should_return_different_codes_for_different_versions() {
+                var code1 = Semver.Parse("1.3.3-beta");
+                var code2 = Semver.Parse("1.2.3-beta");
+
+                Assert.NotEqual( code1.GetHashCode(), code2.GetHashCode());
+            }
+
+
+            [Fact]
+            public void should_ignore_build_meta_data() {
+                var code1 = Semver.Parse("1.2.3-beta+build1");
+                var code2 = Semver.Parse("1.2.3-beta+build2");
+
+                Assert.Equal( code1.GetHashCode(), code2.GetHashCode());
+            }
+
         }
 
         public class operator_equals {
