@@ -76,13 +76,18 @@ namespace VersionTools.Cli {
             var projects = scanner.Scan(RootVersion, args.scan);
             VerboseOut(Verbose.Scanning, "Scan done; found {0} projects", projects.Length);
 
+            if (args.@override && RootVersion == Semver.NoVersion) {
+                VerboseOut(Verbose.Warning, 
+                    "No root version set; all versions will be overridden with {0}", Semver.NoVersion);
+            }
+
             if (args.tcbuildno) {
                 Console.Out.WriteLine("##teamcity[buildnumber '{0}']", RootVersion);
             }
 
             foreach (var project in projects) {
                 VerboseOut(Verbose.Version, "Versioning project {0}", project.Name);
-                if (args.@override && RootVersion.Equals( Semver.NoVersion )) {
+                if (args.@override && RootVersion == Semver.NoVersion ) {
                     VerboseOut(Verbose.Version, "Overriding version {0} => {1}", project.Version, RootVersion);
                     project.Version = RootVersion;
                 }
@@ -138,6 +143,7 @@ namespace VersionTools.Cli {
         public const string Assembly = "[ASSEMBLY]   > ";
         public const string Error    = "[ERROR]      > ";
         public const string Version  = "[VERSIONING] > ";
+        public const string Warning  = "[WARNING]    > ";
     }
     
     class FileUtil {
