@@ -36,10 +36,17 @@ namespace VersionTools.Cli {
         }
 
         public static void HandleListAction(listArgs args) {
-            var assemblyEnumerator = new AssemblyEnumerator(RootDirectory.FullName, args.recurse);
+            if (args.assembly) {
+                var assemblyEnumerator = new AssemblyEnumerator(RootDirectory.FullName, args.recurse);
 
-            foreach (var assembly in assemblyEnumerator.GetAssemblies()) {
-                DisplayVersion(assembly);
+                foreach (var assembly in assemblyEnumerator.GetAssemblies()) {
+                    DisplayVersion(assembly);
+                }
+            } else {
+                var scanner = new ProjectScanner();
+                foreach (var project in scanner.Scan(scan: args.recurse)) {
+                    DisplayVersion(project); 
+                }
             }
         }
 
@@ -57,7 +64,7 @@ namespace VersionTools.Cli {
             var hasBuild = args.build.Length > 0;
             var scanner  = new ProjectScanner();
 
-            var projects = scanner.Scan(version);
+            var projects = scanner.Scan(version, args.scan);
 
             foreach (var project in projects) {
                 VerboseOut(Verbose.Version, "Versioning project {0}", project.Name);
@@ -82,6 +89,12 @@ namespace VersionTools.Cli {
             Out(Verbose.Version,  "  File version:       {0}", assembly.GetAssemblyFileVersion());
             Out(Verbose.Version,  "  Product version:    {0}", assembly.GetProductVersion());
             Out();
+        }
+
+        private static void DisplayVersion(Project project) {
+            Out(Verbose.Version, project.Name);
+            Out(Verbose.Version,  "  Location:           {0}", project.Path);
+            Out(Verbose.Version,  "  Resolved version:   {0}", project.Version);
         }
 
         public static void Out() {
@@ -193,7 +206,8 @@ namespace VersionTools.Cli {
 
     public class ProjectScanner {
 
-        public Project[] Scan(Semver version = null ) {
+        public Project[] Scan(Semver version = null, bool scan = false ) {
+            _scan = scan;
             var projects = new List<Project>();
 
             ScanDirectory(Program.RootDirectory, projects, version ?? Semver.NoVersion);
@@ -229,13 +243,15 @@ namespace VersionTools.Cli {
                 projects.Add(project);
             }
 
-            if (Program.Args.setArgs.scan) {
+            if (_scan) {
                 var directories = directory.GetDirectories();
                 foreach (var directoryInfo in directories) {
                     ScanDirectory(directoryInfo, projects, currentVersion);
                 }
             }
         }
+
+        private bool _scan;
     }
 
     public class VersionFileParser {
@@ -254,7 +270,7 @@ namespace VersionTools.Cli {
 
     [ArgExample("aver help", 
                 "Displays the documentation")]
-    [ArgExample("aver list . -r", 
+    [ArgExample("aver list . -recurse -assembly", 
                 "Displays the versions of all assemblies in the current " +
                 "directory, including sub directories")]
     [ArgExample(@"aver set c:\projects\MyLib -b ""master.f00beef"" -s",
@@ -268,7 +284,7 @@ namespace VersionTools.Cli {
 
         [DefaultValue("")]
         [ArgPosition(1)]
-        [ArgDescription("The file or directory path from which to read assemblies. " +
+        [ArgDescription("The directory path that will be the root of the action. " +
                         "Defaults to the current directory")]
         public string location { get; set; }
 
@@ -276,10 +292,10 @@ namespace VersionTools.Cli {
         [ArgShortcut("ver")]
         public bool verbose { get; set; }
 
-        [ArgDescription("List versions of specified assemblies")]
+        [ArgDescription("List versions of either projects or assemblies in the specified location")]
         public listArgs listArgs { get; set; }
 
-        [ArgDescription("set version of specified assemblies")]
+        [ArgDescription("Set version of specified projects")]
         public setArgs setArgs { get; set; }
 
         [ArgDescription("Displays usage information")]
@@ -302,8 +318,11 @@ namespace VersionTools.Cli {
     }
 
     public class listArgs {
-        [ArgDescription("Visit child directories when listing assemblies")]
+        [ArgDescription("Visit child directories when listing versions")]
         public bool recurse { get; set; }
+
+        [ArgDescription("List the versions of any .Net assemblies found in the location(s)")]
+        public bool assembly { get; set; }
     }
 
     public class setArgs {
