@@ -2,12 +2,18 @@
 using System.Text.RegularExpressions;
 
 namespace VersionTools.Lib {
-    public class Semver : IComparable<Semver>, IEquatable<Semver> {
-        public int    Major        { get; private set; }
-        public int    Minor        { get; private set; }
-        public int    Patch        { get; private set; }
-        public string PreRelease   { get; private set; }
-        public string Build        { get; private set; }
+    public struct Semver : IComparable<Semver>, IEquatable<Semver> {
+        public readonly int Major;
+        public readonly int Minor;
+        public readonly int Patch;
+        public readonly string PreRelease;
+
+        public string Build {
+            get { return _build; }
+            private set { _build = value; }
+        }
+        private string _build;
+
         public string FullVersion {
             get {
                 var fullVersion = string.Format("{0}.{1}.{2}", Major, Minor, Patch);
@@ -28,10 +34,8 @@ namespace VersionTools.Lib {
             Minor      = minor;
             Patch      = patch;
             PreRelease = prerelease;
-            Build      = build;
+            _build     = build;
         }
-
-        public Semver() : this(0,0,0) {}
 
         public static Semver Parse(string value) {
             var tokens = SemverTokenizer.Match(value ?? "");
@@ -40,13 +44,13 @@ namespace VersionTools.Lib {
                 throw new FormatException("Invalid Semantic version");
             }
 
-            var semver = new Semver {
-                Major       = int.Parse(tokens.Groups["major"].Value),
-                Minor       = int.Parse(tokens.Groups["minor"].Value),
-                Patch       = int.Parse(tokens.Groups["patch"].Value),
-                PreRelease  = tokens.Groups["prerelease"].Value,
-                Build       = tokens.Groups["buildmetadata"].Value,
-            };
+            var semver = new Semver (
+                int.Parse(tokens.Groups["major"].Value),
+                int.Parse(tokens.Groups["minor"].Value),
+                int.Parse(tokens.Groups["patch"].Value),
+                tokens.Groups["prerelease"].Value,
+                tokens.Groups["buildmetadata"].Value
+            );
 
             return semver;
         }
@@ -60,7 +64,6 @@ namespace VersionTools.Lib {
         }
 
         public int CompareTo(Semver other) {
-            if (other       == null)  return 1;
             if (other.Major != Major) return Major.CompareTo(other.Major);
             if (other.Minor != Minor) return Minor.CompareTo(other.Minor);
             if (other.Patch != Patch) return Patch.CompareTo(other.Patch);
@@ -97,6 +100,29 @@ namespace VersionTools.Lib {
             return CompareTo(other) == 0;
         }
 
+        public static bool operator ==(Semver ver1, Semver ver2) {
+            return ver1.Equals(ver2);
+        }
+
+        public static bool operator !=(Semver ver1, Semver ver2) {
+            return !ver1.Equals(ver2);
+        }
+
+        public static bool operator >(Semver ver1, Semver ver2) {
+            return ver1.CompareTo(ver2) > 0;
+        }
+
+        public static bool operator <(Semver ver1, Semver ver2) {
+            return ver1.CompareTo(ver2) < 0;
+        }
+
+        public static bool operator >=(Semver ver1, Semver ver2) {
+            return ver1.CompareTo(ver2) >= 0;
+        }
+
+        public static bool operator <=(Semver ver1, Semver ver2) {
+            return ver1.CompareTo(ver2) <= 0;
+        }
 
         public override string ToString() {
             return ToString(null);
@@ -123,7 +149,7 @@ namespace VersionTools.Lib {
         }
 
 
-        public static readonly Semver NoVersion = new Semver();
+        public static readonly Semver NoVersion = new Semver(0,0,0);
 
         private static bool IsNumber(string value) {
             return Regex.IsMatch(value, @"^(?:0|[1-9]\d*)$");

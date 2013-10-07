@@ -48,7 +48,7 @@ namespace VersionTools.Cli {
                 }
             } else {
                 var scanner = new ProjectScanner();
-                foreach (var project in scanner.Scan(scan: args.recurse)) {
+                foreach (var project in scanner.Scan(Semver.NoVersion, args.recurse)) {
                     DisplayVersion(project); 
                 }
             }
@@ -82,7 +82,7 @@ namespace VersionTools.Cli {
 
             foreach (var project in projects) {
                 VerboseOut(Verbose.Version, "Versioning project {0}", project.Name);
-                if (args.@override && RootVersion != Semver.NoVersion) {
+                if (args.@override && RootVersion.Equals( Semver.NoVersion )) {
                     VerboseOut(Verbose.Version, "Overriding version {0} => {1}", project.Version, RootVersion);
                     project.Version = RootVersion;
                 }
@@ -232,11 +232,11 @@ namespace VersionTools.Cli {
 
     public class ProjectScanner {
 
-        public Project[] Scan(Semver version = null, bool scan = false ) {
+        public Project[] Scan(Semver version, bool scan = false ) {
             _scan = scan;
             var projects = new List<Project>();
 
-            ScanDirectory(Program.RootDirectory, projects, version ?? Semver.NoVersion);
+            ScanDirectory(Program.RootDirectory, projects, version );
 
             return projects.ToArray();
         }
