@@ -68,9 +68,6 @@ namespace VersionTools.Cli {
         public static void HandleSetAction(setArgs args) {
             RootVersion = args.version.Length > 0 ? Semver.Parse(args.version) : Semver.NoVersion;
             var hasBuild = args.build.Length > 0;
-            if (hasBuild) {
-                RootVersion = RootVersion.OverrideBuild(args.build);
-            }
             
             var scanner  = new ProjectScanner();
             var projects = scanner.Scan(RootVersion, args.scan);
@@ -81,13 +78,17 @@ namespace VersionTools.Cli {
                     "No root version set; all versions will be overridden with {0}", Semver.NoVersion);
             }
 
+            if (hasBuild) {
+                RootVersion = RootVersion.OverrideBuild(args.build);
+            }
+
             if (args.tcbuildno) {
                 Console.Out.WriteLine("##teamcity[buildnumber '{0}']", RootVersion);
             }
 
             foreach (var project in projects) {
                 VerboseOut(Verbose.Version, "Versioning project {0}", project.Name);
-                if (args.@override && RootVersion == Semver.NoVersion ) {
+                if (args.@override && RootVersion != Semver.NoVersion ) {
                     VerboseOut(Verbose.Version, "Overriding version {0} => {1}", project.Version, RootVersion);
                     project.Version = RootVersion;
                 }
@@ -258,7 +259,7 @@ namespace VersionTools.Cli {
 
                 Program.VerboseOut(Verbose.Scanning, "Parsed version: {0}", currentVersion);
 
-                if ( Program.RootDirectory.FullName.Equals(directory.FullName)) {
+                if (Program.RootDirectory.FullName.Equals(directory.FullName) && currentVersion == Semver.NoVersion) {
                     Program.RootVersion = currentVersion;
                     Program.VerboseOut(Verbose.Scanning, "Setting root version: {0}", currentVersion);
                 }
