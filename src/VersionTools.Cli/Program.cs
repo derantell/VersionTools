@@ -68,6 +68,7 @@ namespace VersionTools.Cli {
                 }
                 var assemblyVersion = AssemblyVersion.FromSemver(project.Version);
                 AssemblyVersionSetter.SetVersion(project.AssemlyInfo, assemblyVersion);
+                NuspecVersionSetter.SetVersion(project.Nuspec, project.Version);
             }
         }
 
@@ -134,11 +135,36 @@ namespace VersionTools.Cli {
                 RegexOptions.Compiled);
     }
 
+    class NuspecVersionSetter {
+        public static void SetVersion(string file, Semver version) {
+            if(!File.Exists(file)) return;
+            
+            Program.VerboseOut(Verbose.Version, "Setting nuspec version {0} of {1}", version.ToString("P"), file);
+
+            var lines    = File.ReadAllLines(file);
+            var newLines = new List<string>();
+
+            foreach (var line in lines) {
+                if (VersionMatcher.IsMatch(line)) {
+                    newLines.Add( VersionMatcher.Replace(line, "${1}" + version.ToString("P") + "$2"));
+                } else {
+                    newLines.Add(line);
+                }
+            }
+
+            File.WriteAllLines(file, newLines, Encoding.UTF8);
+        }
+
+        private static readonly Regex VersionMatcher =
+            new Regex(@"(.*?<version>)\s*\S+\s*(</version>.*?)", RegexOptions.Compiled);
+    }
+
     public class Project {
         public string Name        { get; set; }
         public string Path        { get; set; }
         public Semver Version     { get; set; }
         public string AssemlyInfo { get { return Path + @"\Properties\AssemblyInfo.cs"; }}
+        public string Nuspec      { get; set; }
     }
 
     public class AssemblyVersion {
@@ -183,14 +209,17 @@ namespace VersionTools.Cli {
                 Program.VerboseOut(Verbose.Scanning, "Parsed version: {0}", currentVersion);
             }
 
-            var projFile = directory.GetFiles("*.csproj").SingleOrDefault();
+            var nuspecFile = directory.GetFiles("*.nuspec").SingleOrDefault();
+            var projFile   = directory.GetFiles("*.csproj").SingleOrDefault();
+
             if (projFile != null) {
                 Program.VerboseOut(Verbose.Scanning, "Found project {0}", projFile.Name);
 
                 var project = new Project {
                     Name = projFile.Name,
                     Path = projFile.DirectoryName,
-                    Version = currentVersion
+                    Version = currentVersion,
+                    Nuspec = (nuspecFile != null) ? nuspecFile.FullName : null
                 };
                     
                 projects.Add(project);

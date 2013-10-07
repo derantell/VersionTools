@@ -93,10 +93,45 @@ namespace VersionTools.Lib.Test {
 
         public class ToString_method {
             [Fact]
-            public void should_display_the_full_version() {
+            public void should_display_the_full_version_when_called_without_argument() {
                 var semver = new Semver(1,2,3,"pre", "build");
 
                 Assert.Equal("1.2.3-pre+build", semver.ToString());
+            }
+
+            [Fact]
+            public void should_display_prerelease_version_when_called_with_P_argument() {
+                var semver = new Semver(1,2,3,"pre", "build");
+                
+                Assert.Equal("1.2.3-pre", semver.ToString("P"));
+            }
+
+            [Fact]
+            public void should_display_full_version_when_called_with_F_argument() {
+                var semver = new Semver(1,2,3,"pre", "build");
+
+                Assert.Equal("1.2.3-pre+build", semver.ToString("F"));
+            }
+
+            [Fact]
+            public void should_display_normal_version_when_called_with_V_argument() {
+                var semver = new Semver(1,2,3,"pre", "build");
+
+                Assert.Equal("1.2.3", semver.ToString("V"));
+            }
+
+            [Fact]
+            public void should_throw_format_exception_when_format_is_not_a_valid_value() {
+                var semver = new Semver(1,2,3,"pre", "build");
+
+                Assert.Throws<FormatException>(() => semver.ToString("X"));
+            }
+
+            [Fact]
+            public void should_display_normal_version_when_called_with_P_argument_and_version_is_not_prerelease() {
+                var semver = new Semver(1,2,3,"", "build");
+                
+                Assert.Equal("1.2.3", semver.ToString("P"));
             }
         }
 

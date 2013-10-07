@@ -99,8 +99,29 @@ namespace VersionTools.Lib {
 
 
         public override string ToString() {
-            return FullVersion;
+            return ToString(null);
         }
+        
+        /// <summary>
+        /// Returns the string representation of the Semver.
+        /// </summary>
+        /// <param name="format">A format string. Valid values are: <br/>
+        /// F - Full version including prerelase and build meta data
+        /// P - Pre-release version, excluding build meta data
+        /// V - Only normal version, excluding pre-relase version and build meta data</param>
+        /// <returns>A string on the specified format</returns>
+        public string ToString(string format) {
+            if (string.IsNullOrEmpty(format) || format == "F")
+                return FullVersion;
+            if (format == "P" ) 
+                return Version + (IsPreRelease ? ("-" + PreRelease) : "");
+            if (format == "V")
+                return Version;
+
+            throw new FormatException( 
+                string.Format("'{0}' is not a valid semver string format", format));
+        }
+
 
         public static readonly Semver NoVersion = new Semver();
 
