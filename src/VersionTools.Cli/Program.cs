@@ -63,22 +63,28 @@ namespace VersionTools.Cli {
             }
         }
 
-        public static void HandleSetAction(setArgs args) {
-            var version  = args.version.Length > 0 ? Semver.Parse(args.version) : Semver.NoVersion;
-            var hasBuild = args.build.Length > 0;
-            var scanner  = new ProjectScanner();
+        public static Semver RootVersion { get; set; }
 
-            var projects = scanner.Scan(version, args.scan);
+        public static void HandleSetAction(setArgs args) {
+            RootVersion = args.version.Length > 0 ? Semver.Parse(args.version) : Semver.NoVersion;
+            var hasBuild = args.build.Length > 0;
+            if (hasBuild) {
+                RootVersion.OverrideBuild(args.build);
+            }
             
+            var scanner  = new ProjectScanner();
+            var projects = scanner.Scan(RootVersion, args.scan);
+            VerboseOut(Verbose.Scanning, "Scan done; found {0} projects", projects.Length);
+
             if (args.tcbuildno) {
-                Console.Out.WriteLine("##teamcity[buildnumber '{0}']", version);
+                Console.Out.WriteLine("##teamcity[buildnumber '{0}']", RootVersion);
             }
 
             foreach (var project in projects) {
                 VerboseOut(Verbose.Version, "Versioning project {0}", project.Name);
-                if (version != Semver.NoVersion) {
-                    VerboseOut(Verbose.Version, "Overriding version {0} => {1}", project.Version, version);
-                    project.Version = version;
+                if (args.@override && RootVersion != Semver.NoVersion) {
+                    VerboseOut(Verbose.Version, "Overriding version {0} => {1}", project.Version, RootVersion);
+                    project.Version = RootVersion;
                 }
                 if (hasBuild) {
                     VerboseOut(Verbose.Version, "Overriding build {0} => {1}", project.Version.Build, args.build);
@@ -98,6 +104,7 @@ namespace VersionTools.Cli {
             Out(Verbose.Version,  "  Product version:    {0}", assembly.GetProductVersion());
             Out();
         }
+
 
         private static void DisplayVersion(Project project) {
             Out(Verbose.Version, project.Name);
@@ -244,6 +251,11 @@ namespace VersionTools.Cli {
                 currentVersion = parser.GetVersion();
 
                 Program.VerboseOut(Verbose.Scanning, "Parsed version: {0}", currentVersion);
+
+                if ( Program.RootDirectory.FullName.Equals(directory.FullName)) {
+                    Program.RootVersion = currentVersion;
+                    Program.VerboseOut(Verbose.Scanning, "Setting root version: {0}", currentVersion);
+                }
             }
 
             var nuspecFile = directory.GetFiles("*.nuspec").SingleOrDefault();
@@ -337,29 +349,33 @@ namespace VersionTools.Cli {
     }
 
     public class listArgs {
-        [ArgDescription("Visit child directories when listing versions")]
-        public bool recurse { get; set; }
-
         [ArgDescription("List the versions of any .Net assemblies found in the location(s)")]
         public bool assembly { get; set; }
+
+        [ArgDescription("Visit child directories when listing versions")]
+        public bool recurse { get; set; }
     }
 
     public class setArgs {
-        [ArgDescription("Outputs the root version as a teamcity service message")]
-        public bool tcbuildno { get; set; }
-
-        [DefaultValue("")]
-        [ArgDescription("The semantic version to set. When set, this version overrides any version " +
-                        "specified in version.txt files.")]
-        public string version { get; set; }
-
         [DefaultValue("")]
         [ArgDescription("Build meta data. When set this value overrides any build meta data set " +
                         "in version.txt files.")]
         public string build { get; set; }
 
+        [ArgDescription("Tells aver to override versions specified in version.txt files with the " +
+                        "version specified by the version argument")]
+        public bool @override { get; set; }
+        
         [ArgDescription("Tells aver to scan the current directory and its decendants for projects")]
         public bool scan { get; set; }
+
+        [ArgDescription("Outputs the root version as a teamcity service message")]
+        public bool tcbuildno { get; set; }
+
+        [DefaultValue("")]
+        [ArgDescription("The semantic version to set. When the -override switch is set, this version" +
+                        "overrides any version.txt file")]
+        public string version { get; set; }
     }
     
     public class helpArgs {}
