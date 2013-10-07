@@ -60,14 +60,17 @@ namespace VersionTools.Cli {
             var projects = scanner.Scan(version);
 
             foreach (var project in projects) {
-                if (project.Version == Semver.NoVersion) {
+                VerboseOut(Verbose.Version, "Versioning project {0}", project.Name);
+                if (version != Semver.NoVersion) {
+                    VerboseOut(Verbose.Version, "Overriding version {0} => {1}", project.Version, version);
                     project.Version = version;
                 }
                 if (hasBuild) {
+                    VerboseOut(Verbose.Version, "Overriding build {0} => {1}", project.Version.Build, args.build);
                     project.Version.OverrideBuild(args.build);
                 }
-                var assemblyVersion = AssemblyVersion.FromSemver(project.Version);
-                AssemblyVersionSetter.SetVersion(project.AssemlyInfo, assemblyVersion);
+                
+                AssemblyVersionSetter.SetVersion(project.AssemlyInfo, project.Version);
                 NuspecVersionSetter.SetVersion(project.Nuspec, project.Version);
             }
         }
@@ -103,17 +106,18 @@ namespace VersionTools.Cli {
     }
 
     public struct Verbose {
-        public const string Scanning = "[SCANNING] > ";
-        public const string Assembly = "[ASSEMBLY] > ";
-        public const string Error    = "[ERROR]    > ";
-        public const string Version  = "[VERSION]  > ";
+        public const string Scanning = "[SCANNING]   > ";
+        public const string Assembly = "[ASSEMBLY]   > ";
+        public const string Error    = "[ERROR]      > ";
+        public const string Version  = "[VERSIONING] > ";
     }
     
     class AssemblyVersionSetter {
-        public static void SetVersion(string file, AssemblyVersion version) {
+        public static void SetVersion(string file, Semver version) {
             if(!File.Exists(file)) return;
-            
-            Program.VerboseOut(Verbose.Version, "Setting version {0} of {1}", version.File, file);
+
+            var assemblyVersion = AssemblyVersion.FromSemver(version);
+            Program.VerboseOut(Verbose.Version, "Setting version {0} of {1}", version, file);
 
             var lines    = File.ReadAllLines(file);
             var newLines = new List<string>();
@@ -123,9 +127,9 @@ namespace VersionTools.Cli {
             }
 
             newLines.Add("// Assembly versions set by aver.exe");
-            newLines.Add("[assembly: AssemblyVersion(\""              + version.Assembly + "\")]");
-            newLines.Add("[assembly: AssemblyFileVersion(\""          + version.File     + "\")]");
-            newLines.Add("[assembly: AssemblyInformationalVersion(\"" + version.Product  + "\")]");
+            newLines.Add("[assembly: AssemblyVersion(\""              + assemblyVersion.Assembly + "\")]");
+            newLines.Add("[assembly: AssemblyFileVersion(\""          + assemblyVersion.File     + "\")]");
+            newLines.Add("[assembly: AssemblyInformationalVersion(\"" + assemblyVersion.Informational  + "\")]");
 
             File.WriteAllLines(file, newLines, Encoding.UTF8);
         }
@@ -169,18 +173,18 @@ namespace VersionTools.Cli {
 
     public class AssemblyVersion {
         public AssemblyVersion() {
-            Assembly = File = Product = DefaultVersion;
+            Assembly = File = Informational = DefaultVersion;
         }
 
-        public string Assembly { get; set; }
-        public string File     { get; set; }
-        public string Product  { get; set; }
+        public string Assembly       { get; set; }
+        public string File           { get; set; }
+        public string Informational  { get; set; }
 
         public static AssemblyVersion FromSemver(Semver version) {
             return new AssemblyVersion {
-                Assembly = version.Version + ".0",
-                File = version.FullVersion,
-                Product = version.FullVersion
+                Assembly      = version.Version + ".0",
+                File          = version.Version + ".0",
+                Informational = version.FullVersion
             };
         }
 
@@ -298,7 +302,6 @@ namespace VersionTools.Cli {
     }
 
     public class listArgs {
-        [DefaultValue(false)]
         [ArgDescription("Visit child directories when listing assemblies")]
         public bool recurse { get; set; }
     }
@@ -310,15 +313,10 @@ namespace VersionTools.Cli {
         public string version { get; set; }
 
         [DefaultValue("")]
-        [ArgDescription("The name of the product the assembly is built for")]
-        public string product { get; set; }
-
-        [DefaultValue("")]
         [ArgDescription("Build meta data. When set this value overrides any build meta data set " +
                         "in version.txt files.")]
         public string build { get; set; }
 
-        [DefaultValue(true)]
         [ArgDescription("Tells aver to scan the current directory and its decendants for projects")]
         public bool scan { get; set; }
     }
