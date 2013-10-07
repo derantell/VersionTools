@@ -18,22 +18,24 @@ namespace VersionTools.Cli {
 
         public static ProgramArgs Args { get; set; }
 
-        static void Main(string[] cmdArgs) {
+        static int Main(string[] cmdArgs) {
             if (cmdArgs.Length == 0) {
                 ArgUsage.GetStyledUsage<ProgramArgs>().Write();
-                return;
+                return 0;
             }
 
             try {
                 Args = PowerArgs.Args.Parse<ProgramArgs>(cmdArgs);
                 PowerArgs.Args.InvokeAction<ProgramArgs>(cmdArgs);
+                return 0;
             }
             catch (Exception e) {
                 Console.Error.Write(e.Message);
+                return 1;
             }
         }
 
-        private static void HandleListAction(listArgs args) {
+        public static void HandleListAction(listArgs args) {
             var assemblyEnumerator = new AssemblyEnumerator(RootDirectory.FullName, args.recurse);
 
             foreach (var assembly in assemblyEnumerator.GetAssemblies()) {
