@@ -69,7 +69,7 @@ namespace VersionTools.Cli {
             RootVersion = args.version.Length > 0 ? Semver.Parse(args.version) : Semver.NoVersion;
             var hasBuild = args.build.Length > 0;
             if (hasBuild) {
-                RootVersion.OverrideBuild(args.build);
+                RootVersion = RootVersion.OverrideBuild(args.build);
             }
             
             var scanner  = new ProjectScanner();
@@ -93,7 +93,7 @@ namespace VersionTools.Cli {
                 }
                 if (hasBuild) {
                     VerboseOut(Verbose.Version, "Overriding build {0} => {1}", project.Version.Build, args.build);
-                    project.Version.OverrideBuild(args.build);
+                    project.Version = project.Version.OverrideBuild(args.build);
                 }
                 
                 AssemblyVersionSetter.SetVersion(project.AssemlyInfo, project.Version);

@@ -7,12 +7,7 @@ namespace VersionTools.Lib {
         public readonly int Minor;
         public readonly int Patch;
         public readonly string PreRelease;
-
-        public string Build {
-            get { return _build; }
-            private set { _build = value; }
-        }
-        private string _build;
+        public readonly string Build;
 
         public string FullVersion {
             get {
@@ -34,7 +29,7 @@ namespace VersionTools.Lib {
             Minor      = minor;
             Patch      = patch;
             PreRelease = prerelease;
-            _build     = build;
+            Build      = build;
         }
 
         public static Semver Parse(string value) {
@@ -55,8 +50,8 @@ namespace VersionTools.Lib {
             return semver;
         }
 
-        public void OverrideBuild( string newBuild ) {
-            Build = newBuild;
+        public Semver OverrideBuild( string newBuild ) {
+            return new Semver( Major, Minor, Patch, PreRelease, newBuild );
         }
 
         public static bool IsValidSemver(string version) {
