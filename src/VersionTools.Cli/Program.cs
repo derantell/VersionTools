@@ -255,14 +255,16 @@ namespace VersionTools.Cli {
             if (versionFile != null) {
                 Program.VerboseOut(Verbose.Scanning, "Found version.txt");
                 var parser = new VersionFileParser(versionFile);
-                currentVersion = parser.GetVersion();
+                var parsedVersion = parser.GetVersion();
 
                 Program.VerboseOut(Verbose.Scanning, "Parsed version: {0}", currentVersion);
 
                 if (Program.RootDirectory.FullName.Equals(directory.FullName) && currentVersion == Semver.NoVersion) {
-                    Program.RootVersion = currentVersion;
+                    Program.RootVersion = parsedVersion;
                     Program.VerboseOut(Verbose.Scanning, "Setting root version: {0}", currentVersion);
                 }
+
+                currentVersion = parsedVersion;
             }
 
             var nuspecFile = directory.GetFiles("*.nuspec").SingleOrDefault();
