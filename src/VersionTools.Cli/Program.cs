@@ -83,7 +83,7 @@ namespace VersionTools.Cli {
             }
 
             if (args.tcbuildno) {
-                Console.Out.WriteLine("##teamcity[buildnumber '{0}']", RootVersion);
+                Console.Out.WriteLine("##teamcity[buildNumber '{0}']", RootVersion);
             }
 
             foreach (var project in projects) {
