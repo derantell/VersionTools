@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -267,8 +266,10 @@ namespace VersionTools.Cli {
                 currentVersion = parsedVersion;
             }
 
-            var nuspecFile = directory.GetFiles("*.nuspec").SingleOrDefault();
-            var projFile   = directory.GetFiles("*.csproj").SingleOrDefault();
+            var nuspecFile = directory.GetFiles("*.nuspec")
+                .FirstOrDefault(file => file.Name.StartsWith(directory.Name));
+            var projFile   = directory.GetFiles("*.csproj")
+                .FirstOrDefault(file => file.Name.StartsWith(directory.Name));
 
             if (projFile != null) {
                 Program.VerboseOut(Verbose.Scanning, "Found project {0}", projFile.Name);
