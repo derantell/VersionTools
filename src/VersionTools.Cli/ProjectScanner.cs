@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using VersionTools.Lib;
@@ -57,7 +58,9 @@ namespace VersionTools.Cli {
             if (_scan) {
                 var directories = directory.GetDirectories();
                 foreach (var directoryInfo in directories) {
-                    ScanDirectory(directoryInfo, projects, currentVersion);
+                    try {
+                        ScanDirectory(directoryInfo, projects, currentVersion);
+                    } catch (Exception e) { /* TODO: Remove try/catch and write better handling of file paths longer than 260 characters */ }
                 }
             }
         }
