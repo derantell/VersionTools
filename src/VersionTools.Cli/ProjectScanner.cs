@@ -17,8 +17,6 @@ namespace VersionTools.Cli {
         }
 
         private void ScanDirectory(DirectoryInfo directory, List<Project> projects, Semver currentVersion) {
-            Program.VerboseOut(Verbose.Scanning, "Entering directory {0}", directory.FullName );
-
             var versionFile = directory.GetFiles("version.txt").SingleOrDefault();
             if (versionFile != null) {
                 Program.VerboseOut(Verbose.Scanning, "Found version.txt");
