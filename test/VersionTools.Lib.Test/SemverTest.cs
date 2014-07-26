@@ -43,6 +43,18 @@ namespace VersionTools.Lib.Test {
             public void should_throw_a_format_exception_when_the_input_string_is_an_invalid_semver() {
                 Assert.Throws<FormatException>(() => Semver.Parse("1.2-foo"));
             }
+
+            [Fact]
+            public void should_trim_trailing_whitespace() {
+                var semver = Semver.Parse("1.0.0 ");
+                Assert.Equal(semver, new Semver(1,0,0));
+            }
+
+            [Fact]
+            public void should_trim_starting_whitespace() {
+                var semver = Semver.Parse(" 1.0.0");
+                Assert.Equal(semver, new Semver(1,0,0));
+            }
         }
 
         public class IsValidSemver_method {

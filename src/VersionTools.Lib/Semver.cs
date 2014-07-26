@@ -33,6 +33,7 @@ namespace VersionTools.Lib {
         }
 
         public static Semver Parse(string value) {
+            value = (value ?? "").Trim();
             var tokens = SemverTokenizer.Match(value ?? "");
 
             if (!tokens.Success) {
