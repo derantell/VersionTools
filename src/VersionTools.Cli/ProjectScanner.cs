@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using VersionTools.Lib;
@@ -19,7 +20,7 @@ namespace VersionTools.Cli {
         private void ScanDirectory(DirectoryInfo directory, List<Project> projects, Semver currentVersion) {
             var versionFile = directory.GetFiles("version.txt").SingleOrDefault();
             if (versionFile != null) {
-                Program.VerboseOut(Verbose.Scanning, "Found version.txt");
+                Program.VerboseOut(Verbose.Scanning, "Found version.txt at {0}", directory.FullName);
                 var parser = new VersionFileParser(versionFile);
                 var parsedVersion = parser.GetVersion();
 
@@ -41,7 +42,7 @@ namespace VersionTools.Cli {
             if (projFile != null || nuspecFile != null) {
                 // We say that this is a project if it has either a projfile or a nuspec file.
                 var projName = directory.Name;
-                Program.VerboseOut(Verbose.Scanning, "Found project {0}", projName);
+                Program.VerboseOut(Verbose.Scanning, "Found project {0} at {1}", projName, directory.FullName);
 
                 var project = new Project {
                     Name    = projName,
@@ -58,7 +59,11 @@ namespace VersionTools.Cli {
                 foreach (var directoryInfo in directories) {
                     try {
                         ScanDirectory(directoryInfo, projects, currentVersion);
-                    } catch (Exception e) { /* TODO: Remove try/catch and write better handling of file paths longer than 260 characters */ }
+                    }
+                    catch (PathTooLongException e) {
+                         Program.VerboseOut(Verbose.Warning, 
+                             "Skipping subdir {0}; path too long", directoryInfo.FullName);
+                    }
                 }
             }
         }
