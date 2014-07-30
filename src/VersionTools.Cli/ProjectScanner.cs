@@ -60,7 +60,7 @@ namespace VersionTools.Cli {
                     try {
                         ScanDirectory(directoryInfo, projects, currentVersion);
                     }
-                    catch (PathTooLongException e) {
+                    catch (PathTooLongException) {
                          Program.VerboseOut(Verbose.Warning, 
                              "Skipping subdir {0}; path too long", directoryInfo.FullName);
                     }
