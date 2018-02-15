@@ -22,16 +22,20 @@ namespace VersionTools.Cli {
             if (versionFile != null) {
                 Program.VerboseOut(Verbose.Scanning, "Found version.txt at {0}", directory.FullName);
                 var parser = new VersionFileParser(versionFile);
-                var parsedVersion = parser.GetVersion();
+                try {
+                    var parsedVersion = parser.GetVersion();
 
-                Program.VerboseOut(Verbose.Scanning, "Parsed version: {0}", parsedVersion);
+                    Program.VerboseOut(Verbose.Scanning, "Parsed version: {0}", parsedVersion);
 
-                if (Program.RootDirectory.FullName.Equals(directory.FullName) && currentVersion == Semver.NoVersion) {
-                    Program.RootVersion = parsedVersion;
-                    Program.VerboseOut(Verbose.Scanning, "Setting root version: {0}", parsedVersion);
+                    if (Program.RootDirectory.FullName.Equals(directory.FullName) && currentVersion == Semver.NoVersion) {
+                        Program.RootVersion = parsedVersion;
+                        Program.VerboseOut(Verbose.Scanning, "Setting root version: {0}", parsedVersion);
+                    }
+
+                    currentVersion = parsedVersion;
+                } catch (FormatException) {
+                    Program.VerboseOut(Verbose.Scanning, "Skipping invalid version in file {0}", directory.FullName);
                 }
-
-                currentVersion = parsedVersion;
             }
 
             var nuspecFile = directory.GetFiles("*.nuspec")
